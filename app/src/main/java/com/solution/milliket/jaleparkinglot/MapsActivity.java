@@ -11,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
@@ -18,12 +19,14 @@ import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
-import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.ListView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,19 +47,30 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.gson.Gson;
+import com.solution.milliket.jaleparkinglot.model.ActivityTracking;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
+
+import butterknife.ButterKnife;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SharedPreferences.OnSharedPreferenceChangeListener {
 
@@ -144,12 +158,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
 
+    private TextView tvRecord;
+    private Spinner mDataSpinner;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
         setContentView(R.layout.activity_maps);
+        ButterKnife.bind(this);
+
+        tvRecord = findViewById(R.id.tv_record);
+        mDataSpinner = findViewById(R.id.spinner_data);
+        resetDataDropdown();
+
+        View layoutRecord = findViewById(R.id.layout_record);
+        layoutRecord.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                recordClick();
+            }
+        });
+
+        findViewById(R.id.layout_current_location).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mCurrentLocation != null && mMap != null) {
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude())));
+                }
+            }
+        });
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -191,6 +230,134 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //        detectedActivitiesListView.setAdapter(mAdapter);
 
         mActivityRecognitionClient = new ActivityRecognitionClient(this);
+    }
+
+    ArrayList<String> mFileNames = null;
+    private void resetDataDropdown() {
+        File dataFolder = getExternalFilesDir(null);
+        if (dataFolder == null) {
+            Log.d(TAG, "resetDataDropdown: dataFolder = null");
+            return;
+        }
+
+        File[] files = dataFolder.listFiles();
+        mFileNames = new ArrayList<>();
+        for (File file : files) {
+            mFileNames.add(file.getName());
+        }
+        ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, mFileNames);
+        dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mDataSpinner.setPrompt("Select data");
+        mDataSpinner.setAdapter(dataAdapter);
+
+        mDataSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                Log.d(TAG, "onItemSelected: position = " + position);
+                if (mFileNames == null) {
+                    return;
+                }
+
+                if (mMap != null) {
+                    mMap.clear();
+                }
+
+                InputStreamReader isr = null;
+                ArrayList<ActivityTracking> activityTrackingList = new ArrayList<>();
+
+                try {
+                    String fileName = mFileNames.get(position);
+                    File file = new File(getExternalFilesDir(null), fileName);
+                    FileInputStream fis = new FileInputStream(file);
+                    isr = new InputStreamReader(fis);
+                    BufferedReader buffreader = new BufferedReader(isr);
+
+                    String readString = buffreader.readLine() ;
+                    while ( readString != null ) {
+                        if (!TextUtils.isEmpty(readString)) {
+                            Gson gson = new Gson(); // Or use new GsonBuilder().create();
+                            ActivityTracking data = gson.fromJson(readString, ActivityTracking.class);
+                            activityTrackingList.add(data);
+                        }
+
+                        readString = buffreader.readLine() ;
+                    }
+
+                } catch (IOException e) {
+                    Log.d(TAG, "onItemClick", e);
+                    return;
+                } finally {
+                    try {
+                        if (isr != null) {
+                            isr.close();
+                        }
+                    } catch (IOException e) {
+                        Log.d(TAG, "onItemClick", e);
+                    }
+                }
+
+                if (!activityTrackingList.isEmpty()) {
+                    isRestoreMode = true;
+
+                    ActivityTracking firstPoint = activityTrackingList.get(0);
+                    double prevLat = firstPoint.latitude;
+                    double prevLon = firstPoint.longtitude;
+
+                    for (int i = 1; i < activityTrackingList.size(); i++) {
+                        ActivityTracking point = activityTrackingList.get(i);
+                        double latitude = point.latitude;
+                        double longitude = point.longtitude;
+
+                        PolylineOptions lineOptions = new PolylineOptions();
+                        LatLng prevCoord = new LatLng(prevLat, prevLon);
+                        LatLng current = new LatLng(latitude, longitude);
+
+                        lineOptions.add(prevCoord);
+                        lineOptions.add(current);
+
+                        lineOptions.width(8);
+                        int activity = point.type;
+                        Log.d(TAG, "onItemClick: activity: " +
+                                Utils.getActivityString(getApplicationContext(),activity));
+
+                        switch (activity) {
+                            case DetectedActivity.WALKING:
+                            case DetectedActivity.ON_FOOT:
+                            case DetectedActivity.RUNNING:
+                                lineOptions.color(Color.BLUE);
+                                break;
+                            case DetectedActivity.ON_BICYCLE:
+                            case DetectedActivity.IN_VEHICLE:
+                                lineOptions.color(Color.RED);
+                                break;
+                            case DetectedActivity.UNKNOWN:
+                                lineOptions.color(Color.YELLOW);
+                                break;
+                            case DetectedActivity.STILL:
+                            case DetectedActivity.TILTING:
+                            default:
+                                lineOptions.color(Color.BLACK);
+                                break;
+                        }
+//                CircleOptions circleOptions = new CircleOptions()
+//                        .center(current)
+//                        .fillColor(Color.RED)
+//                        .radius(2)
+//                        .strokeWidth(0.0f)
+//                        .visible(true);
+                        mMap.addPolyline(lineOptions);
+                        prevLat = latitude;
+                        prevLon = longitude;
+                    }
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
     }
 
     /**
@@ -410,8 +577,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     private double mLastLat = 0.0;
     private double mLastLon = 0.0;
+    private OutputStreamWriter fos = null;
 
     private void updateLocationUI() {
+        if (isRestoreMode) {
+            return;
+        }
+
         if (mCurrentLocation != null) {
             double latitude = mCurrentLocation.getLatitude();
             double longitude = mCurrentLocation.getLongitude();
@@ -471,8 +643,65 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.moveCamera(CameraUpdateFactory.newLatLng(current));
 
                 updateLastCoord(latitude, longitude);
+
+                if (isSaving) {
+                    // Start a new
+                    if (fos == null) {
+                        String fileName = convertDate(System.currentTimeMillis(), "yyyy_MM_dd_HH_mm_ss") + ".txt";
+                        File file = new File(getExternalFilesDir(null), fileName);
+                        try {
+                            fos = new OutputStreamWriter(new FileOutputStream(file));
+                        } catch (FileNotFoundException e) {
+                            Log.d(TAG, "updateLocationUI", e);
+                            return;
+                        }
+                    }
+
+                    // Save new
+                    ActivityTracking data = new ActivityTracking();
+                    data.time = convertDate(System.currentTimeMillis(), "yyyy-MM-dd HH:mm:ss");
+                    data.latitude = latitude;
+                    data.longtitude = longitude;
+                    data.type = activity;
+
+                    Gson gson = new Gson();
+                    String json = gson.toJson(data);
+                    Log.d(TAG, "updateLocationUI: json = " + json);
+
+                    try {
+                        fos.write(json + "\n");
+                    } catch (IOException e) {
+                        Log.e(TAG, "updateLocationUI", e);
+                        try {
+                            fos.close();
+                        } catch (IOException e1) {
+                            e1.printStackTrace();
+                        } finally {
+                            fos = null;
+                        }
+                    }
+
+                } else {
+                    if (fos != null) {
+                        try {
+                            fos.close();
+                            resetDataDropdown();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } finally {
+                            fos = null;
+                        }
+                    }
+                }
             }
         }
+    }
+
+    public static String convertDate(long dateInMilliseconds, String formatStr) {
+        Date date = new Date(dateInMilliseconds);
+        SimpleDateFormat dateformat = new SimpleDateFormat(formatStr);
+        String format = dateformat.format(date);
+        return format;
     }
 
     private int getCurrentActivity() {
@@ -796,5 +1025,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (s.equals(Constants.KEY_DETECTED_ACTIVITIES)) {
             updateDetectedActivitiesList();
         }
+    }
+
+    public void recordClick() {
+        String text = tvRecord.getText().toString();
+        if ("Start".equals(text)) {
+            startSaveData();
+            tvRecord.setText("Stop");
+
+        } else if ("Stop".equals(text)) {
+            stopSaveData();
+            tvRecord.setText("Start");
+        }
+    }
+
+    private boolean isSaving = false;
+    private boolean isRestoreMode = false;
+
+    private void startSaveData() {
+        isRestoreMode = false;
+        isSaving = true;
+
+        if (mMap != null) {
+            mMap.clear();
+        }
+    }
+
+    private void stopSaveData() {
+        isSaving = false;
     }
 }
