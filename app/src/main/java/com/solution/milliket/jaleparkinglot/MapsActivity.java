@@ -2,13 +2,17 @@ package com.solution.milliket.jaleparkinglot;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -17,12 +21,16 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.ResolvableApiException;
+import com.google.android.gms.location.ActivityRecognitionClient;
+import com.google.android.gms.location.DetectedActivity;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -46,10 +54,11 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SharedPreferences.OnSharedPreferenceChangeListener {
 
     private static final String TAG = MapsActivity.class.getSimpleName();
 
@@ -66,7 +75,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     /**
      * The desired interval for location updates. Inexact. Updates may be more or less frequent.
      */
-    private static final long UPDATE_INTERVAL_IN_MILLISECONDS = 1000;
+    private static final long UPDATE_INTERVAL_IN_MILLISECONDS = 500;
 
     /**
      * The fastest rate for active location updates. Exact. Updates will never be more frequent
@@ -111,11 +120,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     private Location mCurrentLocation;
 
-    // Labels.
-    private String mLatitudeLabel;
-    private String mLongitudeLabel;
-    private String mLastUpdateTimeLabel;
-
     /**
      * Tracks the status of the location updates request. Value changes when the user presses the
      * Start Updates and Stop Updates buttons.
@@ -127,11 +131,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     private String mLastUpdateTime;
 
+    private Context mContext;
+    /**
+     * The entry point for interacting with activity recognition.
+     */
+    private ActivityRecognitionClient mActivityRecognitionClient;
+
+    // UI elements.
+    private Button mRequestActivityUpdatesButton;
+    private Button mRemoveActivityUpdatesButton;
+
+
     private GoogleMap mMap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         setContentView(R.layout.activity_maps);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -152,6 +169,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         createLocationCallback();
         createLocationRequest();
         buildLocationSettingsRequest();
+
+        mContext = this;
+
+        // Get the UI widgets.
+//        mRequestActivityUpdatesButton = (Button) findViewById(R.id.request_activity_updates_button);
+//        mRemoveActivityUpdatesButton = (Button) findViewById(R.id.remove_activity_updates_button);
+//        ListView detectedActivitiesListView = (ListView) findViewById(
+//                R.id.detected_activities_listview);
+
+        // Enable either the Request Updates button or the Remove Updates button depending on
+        // whether activity updates have been requested.
+        setButtonsEnabledState();
+
+        ArrayList<DetectedActivity> detectedActivities = Utils.detectedActivitiesFromJson(
+                PreferenceManager.getDefaultSharedPreferences(this).getString(
+                        Constants.KEY_DETECTED_ACTIVITIES, ""));
+
+//        // Bind the adapter to the ListView responsible for display data for detected activities.
+//        mAdapter = new DetectedActivitiesAdapter(this, detectedActivities);
+//        detectedActivitiesListView.setAdapter(mAdapter);
+
+        mActivityRecognitionClient = new ActivityRecognitionClient(this);
     }
 
     /**
@@ -340,6 +379,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         updateLocationUI();
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        Log.d(TAG, "onNewIntent");
+    }
+
     /**
      * Disables both buttons when functionality is disabled due to insuffucient location settings.
      * Otherwise ensures that only one button is enabled at any time. The Start Updates button is
@@ -348,6 +393,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     private void setButtonsEnabledState() {
         if (mRequestingLocationUpdates) {
+            Log.d(TAG, "setButtonsEnabledState: Updating . . . ");
+        } else {
+            Log.d(TAG, "setButtonsEnabledState: Stopped");
+        }
+
+        if (getUpdatesRequestedState()) {
             Log.d(TAG, "setButtonsEnabledState: Updating . . . ");
         } else {
             Log.d(TAG, "setButtonsEnabledState: Stopped");
@@ -363,14 +414,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void updateLocationUI() {
         if (mCurrentLocation != null) {
             double latitude = mCurrentLocation.getLatitude();
-            Log.d(TAG, "updateLocationUI: " + String.format(Locale.ENGLISH, "%s: %f", mLatitudeLabel,
-                    latitude));
             double longitude = mCurrentLocation.getLongitude();
 
-            Log.d(TAG, "updateLocationUI: " + String.format(Locale.ENGLISH, "%s: %f", mLongitudeLabel,
-                    longitude));
-            Log.d(TAG, "updateLocationUI: " + String.format(Locale.ENGLISH, "%s: %s",
-                    mLastUpdateTimeLabel, mLastUpdateTime));
+            Log.d(TAG, "updateLocationUI: "
+                    + String.format(Locale.ENGLISH, "Latitude: %f",latitude));
+            Log.d(TAG, "updateLocationUI: "
+                    + String.format(Locale.ENGLISH, "Longtitude: %f", longitude));
+            Log.d(TAG, "updateLocationUI: "
+                    + String.format(Locale.ENGLISH, "Last updated: %s", mLastUpdateTime));
 
             // Add a marker in Sydney and move the camera
             if (mMap != null) {
@@ -386,8 +437,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 lineOptions.add(prevCoord);
                 lineOptions.add(current);
 
-                lineOptions.color(Color.RED)
-                        .width(8);
+                lineOptions.width(8);
+                int activity = getCurrentActivity();
+                Log.d(TAG, "updateLocationUI: activity: " +
+                        Utils.getActivityString(getApplicationContext(),activity));
+
+                switch (activity) {
+                    case DetectedActivity.WALKING:
+                    case DetectedActivity.ON_FOOT:
+                    case DetectedActivity.RUNNING:
+                        lineOptions.color(Color.BLUE);
+                        break;
+                    case DetectedActivity.ON_BICYCLE:
+                    case DetectedActivity.IN_VEHICLE:
+                        lineOptions.color(Color.RED);
+                        break;
+                    case DetectedActivity.UNKNOWN:
+                        lineOptions.color(Color.YELLOW);
+                        break;
+                    case DetectedActivity.STILL:
+                    case DetectedActivity.TILTING:
+                    default:
+                        lineOptions.color(Color.BLACK);
+                        break;
+                }
 //                CircleOptions circleOptions = new CircleOptions()
 //                        .center(current)
 //                        .fillColor(Color.RED)
@@ -400,6 +473,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 updateLastCoord(latitude, longitude);
             }
         }
+    }
+
+    private int getCurrentActivity() {
+        ArrayList<DetectedActivity> detectedActivities = Utils.detectedActivitiesFromJson(
+                PreferenceManager.getDefaultSharedPreferences(mContext)
+                        .getString(Constants.KEY_DETECTED_ACTIVITIES, ""));
+
+        int currActivity = DetectedActivity.UNKNOWN;
+        int maxConfidence = 0;
+        for (DetectedActivity activity : detectedActivities) {
+            int confidence = activity.getConfidence();
+            if (confidence > maxConfidence) {
+                maxConfidence = confidence;
+                currActivity = activity.getType();
+            }
+        }
+
+        return currActivity;
     }
 
     private void updateLastCoord(double latitude, double longtitude) {
@@ -441,14 +532,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         updateUI();
+
+        PreferenceManager.getDefaultSharedPreferences(this)
+                .registerOnSharedPreferenceChangeListener(this);
+        requestActivityUpdatesButtonHandler();
     }
 
     @Override
     protected void onPause() {
-        super.onPause();
 
         // Remove location updates to save battery.
         stopLocationUpdates();
+
+        removeActivityUpdatesButtonHandler();
+        PreferenceManager.getDefaultSharedPreferences(this)
+                .unregisterOnSharedPreferenceChangeListener(this);
+
+        super.onPause();
     }
 
     /**
@@ -577,5 +677,124 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.animateCamera(CameraUpdateFactory.zoomTo(20.f));
+    }
+
+    /**
+     * Registers for activity recognition updates using
+     * {@link ActivityRecognitionClient#requestActivityUpdates(long, PendingIntent)}.
+     * Registers success and failure callbacks.
+     */
+    public void requestActivityUpdatesButtonHandler() {
+        Task<Void> task = mActivityRecognitionClient.requestActivityUpdates(
+                Constants.DETECTION_INTERVAL_IN_MILLISECONDS,
+                getActivityDetectionPendingIntent());
+
+        task.addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                Toast.makeText(mContext,
+                        getString(R.string.activity_updates_enabled),
+                        Toast.LENGTH_SHORT)
+                        .show();
+                setUpdatesRequestedState(true);
+                updateDetectedActivitiesList();
+            }
+        });
+
+        task.addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.w(TAG, getString(R.string.activity_updates_not_enabled));
+                Toast.makeText(mContext,
+                        getString(R.string.activity_updates_not_enabled),
+                        Toast.LENGTH_SHORT)
+                        .show();
+                setUpdatesRequestedState(false);
+            }
+        });
+    }
+
+
+    /**
+     * Removes activity recognition updates using
+     * {@link ActivityRecognitionClient#removeActivityUpdates(PendingIntent)}. Registers success and
+     * failure callbacks.
+     */
+    public void removeActivityUpdatesButtonHandler() {
+        Task<Void> task = mActivityRecognitionClient.removeActivityUpdates(
+                getActivityDetectionPendingIntent());
+        task.addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                Toast.makeText(mContext,
+                        getString(R.string.activity_updates_removed),
+                        Toast.LENGTH_SHORT)
+                        .show();
+                setUpdatesRequestedState(false);
+                // Reset the display.
+//                mAdapter.updateActivities(new ArrayList<DetectedActivity>());
+            }
+        });
+
+        task.addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.w(TAG, "Failed to enable activity recognition.");
+                Toast.makeText(mContext, getString(R.string.activity_updates_not_removed),
+                        Toast.LENGTH_SHORT).show();
+                setUpdatesRequestedState(true);
+            }
+        });
+    }
+
+    /**
+     * Gets a PendingIntent to be sent for each activity detection.
+     */
+    private PendingIntent getActivityDetectionPendingIntent() {
+        Intent intent = new Intent(this, DetectedActivitiesIntentService.class);
+
+        // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling
+        // requestActivityUpdates() and removeActivityUpdates().
+        return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    /**
+     * Retrieves the boolean from SharedPreferences that tracks whether we are requesting activity
+     * updates.
+     */
+    private boolean getUpdatesRequestedState() {
+        return PreferenceManager.getDefaultSharedPreferences(this)
+                .getBoolean(Constants.KEY_ACTIVITY_UPDATES_REQUESTED, false);
+    }
+
+    /**
+     * Sets the boolean in SharedPreferences that tracks whether we are requesting activity
+     * updates.
+     */
+    private void setUpdatesRequestedState(boolean requesting) {
+        PreferenceManager.getDefaultSharedPreferences(this)
+                .edit()
+                .putBoolean(Constants.KEY_ACTIVITY_UPDATES_REQUESTED, requesting)
+                .apply();
+        setButtonsEnabledState();
+    }
+
+    /**
+     * Processes the list of freshly detected activities. Asks the adapter to update its list of
+     * DetectedActivities with new {@code DetectedActivity} objects reflecting the latest detected
+     * activities.
+     */
+    protected void updateDetectedActivitiesList() {
+        ArrayList<DetectedActivity> detectedActivities = Utils.detectedActivitiesFromJson(
+                PreferenceManager.getDefaultSharedPreferences(mContext)
+                        .getString(Constants.KEY_DETECTED_ACTIVITIES, ""));
+//        mAdapter.updateActivities(detectedActivities);
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+        if (s.equals(Constants.KEY_DETECTED_ACTIVITIES)) {
+            updateDetectedActivitiesList();
+        }
     }
 }

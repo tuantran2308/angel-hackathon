@@ -17,5 +17,8 @@
     <string name="unknown">Unknown activity</string>
     <string name="walking">Walking</string>
     <string name="unidentifiable_activity">Unidentifiable activity: %1$d</string>
-
+    <string name="activity_updates_enabled">Activity updates enabled</string>
+    <string name="activity_updates_not_enabled">Failed to enable activity updates</string>
+    <string name="activity_updates_removed">Activity updates removed</string>
+    <string name="activity_updates_not_removed">Failed to remove activity updates</string>
 </resources>

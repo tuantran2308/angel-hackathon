@@ -38,7 +38,7 @@ final class Constants {
      * detections while improving battery life. A value of 0 results in activity detections at the
      * fastest possible rate.
      */
-    static final long DETECTION_INTERVAL_IN_MILLISECONDS = 30 * 1000; // 30 seconds
+    static final long DETECTION_INTERVAL_IN_MILLISECONDS = 0;
     /**
      * List of DetectedActivity types that we monitor in this sample.
      */
