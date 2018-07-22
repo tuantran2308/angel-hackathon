@@ -19,6 +19,7 @@ import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -26,6 +27,7 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -160,6 +162,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private TextView tvRecord;
     private Spinner mDataSpinner;
+    private ImageView mImvRecord;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -170,6 +173,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         tvRecord = findViewById(R.id.tv_record);
         mDataSpinner = findViewById(R.id.spinner_data);
+        mImvRecord = findViewById(R.id.imv_record);
         resetDataDropdown();
 
         View layoutRecord = findViewById(R.id.layout_record);
@@ -184,7 +188,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onClick(View v) {
                 if (mCurrentLocation != null && mMap != null) {
-                    mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude())));
+                    double latitude = mCurrentLocation.getLatitude();
+                    double longitude = mCurrentLocation.getLongitude();
+                    LatLng latLng = new LatLng(latitude, longitude);
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
                 }
             }
         });
@@ -233,6 +240,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     ArrayList<String> mFileNames = null;
+
     private void resetDataDropdown() {
         File dataFolder = getExternalFilesDir(null);
         if (dataFolder == null) {
@@ -273,15 +281,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     isr = new InputStreamReader(fis);
                     BufferedReader buffreader = new BufferedReader(isr);
 
-                    String readString = buffreader.readLine() ;
-                    while ( readString != null ) {
+                    String readString = buffreader.readLine();
+                    while (readString != null) {
                         if (!TextUtils.isEmpty(readString)) {
                             Gson gson = new Gson(); // Or use new GsonBuilder().create();
                             ActivityTracking data = gson.fromJson(readString, ActivityTracking.class);
                             activityTrackingList.add(data);
                         }
 
-                        readString = buffreader.readLine() ;
+                        readString = buffreader.readLine();
                     }
 
                 } catch (IOException e) {
@@ -319,7 +327,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         lineOptions.width(8);
                         int activity = point.type;
                         Log.d(TAG, "onItemClick: activity: " +
-                                Utils.getActivityString(getApplicationContext(),activity));
+                                Utils.getActivityString(getApplicationContext(), activity));
 
                         switch (activity) {
                             case DetectedActivity.WALKING:
@@ -589,7 +597,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             double longitude = mCurrentLocation.getLongitude();
 
             Log.d(TAG, "updateLocationUI: "
-                    + String.format(Locale.ENGLISH, "Latitude: %f",latitude));
+                    + String.format(Locale.ENGLISH, "Latitude: %f", latitude));
             Log.d(TAG, "updateLocationUI: "
                     + String.format(Locale.ENGLISH, "Longtitude: %f", longitude));
             Log.d(TAG, "updateLocationUI: "
@@ -612,7 +620,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 lineOptions.width(8);
                 int activity = getCurrentActivity();
                 Log.d(TAG, "updateLocationUI: activity: " +
-                        Utils.getActivityString(getApplicationContext(),activity));
+                        Utils.getActivityString(getApplicationContext(), activity));
 
                 switch (activity) {
                     case DetectedActivity.WALKING:
@@ -905,6 +913,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setMyLocationEnabled(true);
         mMap.animateCamera(CameraUpdateFactory.zoomTo(20.f));
     }
 
@@ -1029,13 +1038,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public void recordClick() {
         String text = tvRecord.getText().toString();
-        if ("Start".equals(text)) {
-            startSaveData();
-            tvRecord.setText("Stop");
+        String start = getString(R.string.start);
+        String stop  = getString(R.string.stop);
 
-        } else if ("Stop".equals(text)) {
+        if (start.equals(text)) {
+            startSaveData();
+            tvRecord.setText(stop);
+            mImvRecord.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.ic_stop));
+
+        } else if (stop.equals(text)) {
             stopSaveData();
-            tvRecord.setText("Start");
+            tvRecord.setText(start);
+            mImvRecord.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.ic_play));
         }
     }
 

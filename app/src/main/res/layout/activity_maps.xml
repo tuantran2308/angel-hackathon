@@ -57,7 +57,7 @@
                 android:paddingTop="5dp"
                 android:paddingBottom="5dp"
                 android:textSize="16sp"
-                android:text="Collect data"/>
+                android:text="@string/collect_data"/>
 
             <RelativeLayout
                 android:id="@+id/layout_record"
@@ -71,10 +71,11 @@
                 android:background="?attr/selectableItemBackground">
                 <ImageView
                     android:id="@+id/imv_record"
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
                     android:layout_centerVertical="true"
-                    android:src="@mipmap/ic_launcher"/>
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_play"/>
 
                 <TextView
                     android:id="@+id/tv_record"
@@ -84,7 +85,7 @@
                     android:layout_toEndOf="@+id/imv_record"
                     android:layout_marginStart="10dp"
                     android:textColor="@android:color/black"
-                    android:text="Start"/>
+                    android:text="@string/start"/>
             </RelativeLayout>
 
             <View
@@ -102,7 +103,7 @@
                 android:paddingTop="5dp"
                 android:paddingBottom="5dp"
                 android:textSize="16sp"
-                android:text="Restore data"/>
+                android:text="@string/restore_data"/>
 
             <RelativeLayout
                 android:layout_width="match_parent"
@@ -114,10 +115,11 @@
                 android:focusable="true">
                 <ImageView
                     android:id="@+id/imv_restore"
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"
+                    android:layout_width="35dp"
+                    android:layout_height="40dp"
                     android:layout_centerVertical="true"
-                    android:src="@mipmap/ic_launcher"/>
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_data"/>
 
                 <android.support.v7.widget.AppCompatSpinner
                     android:id="@+id/spinner_data"
@@ -134,7 +136,8 @@
                 android:layout_height="0.5dp"
                 android:background="#E0E0E0"
                 android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"/>
+                android:layout_marginBottom="10dp"
+                android:visibility="gone"/>
 
             <TextView
                 android:layout_width="match_parent"
@@ -144,7 +147,8 @@
                 android:paddingTop="5dp"
                 android:paddingBottom="5dp"
                 android:textSize="16sp"
-                android:text="Others"/>
+                android:text="@string/others"
+                android:visibility="gone"/>
 
             <RelativeLayout
                 android:id="@+id/layout_current_location"
@@ -155,7 +159,8 @@
                 android:paddingEnd="10dp"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="?attr/selectableItemBackground">
+                android:background="?attr/selectableItemBackground"
+                android:visibility="gone">
                 <ImageView
                     android:id="@+id/imv_current_location"
                     android:layout_width="25dp"
@@ -170,7 +175,7 @@
                     android:layout_toEndOf="@+id/imv_current_location"
                     android:layout_marginStart="10dp"
                     android:textColor="@android:color/black"
-                    android:text="Current location"/>
+                    android:text="@string/current_location"/>
             </RelativeLayout>
 
             <RelativeLayout
@@ -181,7 +186,8 @@
                 android:paddingEnd="10dp"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="?attr/selectableItemBackground">
+                android:background="?attr/selectableItemBackground"
+                android:visibility="gone">
                 <ImageView
                     android:id="@+id/imv_about_us"
                     android:layout_width="25dp"
@@ -196,7 +202,7 @@
                     android:layout_toEndOf="@+id/imv_about_us"
                     android:layout_marginStart="10dp"
                     android:textColor="@android:color/black"
-                    android:text="About us"/>
+                    android:text="@string/about_us"/>
             </RelativeLayout>
 
         </LinearLayout>

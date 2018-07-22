@@ -20,4 +20,11 @@
     <string name="activity_updates_not_enabled">Failed to enable activity updates</string>
     <string name="activity_updates_removed">Activity updates removed</string>
     <string name="activity_updates_not_removed">Failed to remove activity updates</string>
+    <string name="collect_data">Collect data</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="restore_data">Restore data</string>
+    <string name="others">Others</string>
+    <string name="current_location">Current location</string>
+    <string name="about_us">About us</string>
 </resources>
