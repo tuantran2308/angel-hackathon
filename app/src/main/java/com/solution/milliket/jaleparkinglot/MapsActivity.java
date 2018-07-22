@@ -49,6 +49,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -299,6 +300,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     ActivityTracking firstPoint = activityTrackingList.get(0);
                     double prevLat = firstPoint.latitude;
                     double prevLon = firstPoint.longtitude;
+                    int prevActivity = -1;
 
                     for (int i = 1; i < activityTrackingList.size(); i++) {
                         ActivityTracking point = activityTrackingList.get(i);
@@ -340,6 +342,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         mMap.addPolyline(lineOptions);
                         prevLat = latitude;
                         prevLon = longitude;
+
+                        if ((prevActivity == DetectedActivity.IN_VEHICLE || prevActivity == DetectedActivity.ON_BICYCLE)
+                                && (activity != DetectedActivity.IN_VEHICLE && activity != DetectedActivity.ON_BICYCLE)) {
+                            CircleOptions circleOptions = new CircleOptions();
+                            circleOptions.strokeWidth(8.0f)
+                                    .radius(4)
+                                    .fillColor(Color.TRANSPARENT)
+                                    .strokeColor(ContextCompat.getColor(MapsActivity.this, android.R.color.holo_green_dark))
+                                    .center(prevCoord);
+                            mMap.addCircle(circleOptions);
+
+                        }
+
+                        prevActivity = activity;
                     }
                 }
             }
