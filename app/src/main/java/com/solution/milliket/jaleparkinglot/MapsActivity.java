@@ -218,23 +218,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         mContext = this;
 
-        // Get the UI widgets.
-//        mRequestActivityUpdatesButton = (Button) findViewById(R.id.request_activity_updates_button);
-//        mRemoveActivityUpdatesButton = (Button) findViewById(R.id.remove_activity_updates_button);
-//        ListView detectedActivitiesListView = (ListView) findViewById(
-//                R.id.detected_activities_listview);
-
-        // Enable either the Request Updates button or the Remove Updates button depending on
-        // whether activity updates have been requested.
         setButtonsEnabledState();
 
         ArrayList<DetectedActivity> detectedActivities = Utils.detectedActivitiesFromJson(
                 PreferenceManager.getDefaultSharedPreferences(this).getString(
                         Constants.KEY_DETECTED_ACTIVITIES, ""));
-
-//        // Bind the adapter to the ListView responsible for display data for detected activities.
-//        mAdapter = new DetectedActivitiesAdapter(this, detectedActivities);
-//        detectedActivitiesListView.setAdapter(mAdapter);
 
         mActivityRecognitionClient = new ActivityRecognitionClient(this);
     }
@@ -348,12 +336,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 lineOptions.color(Color.BLACK);
                                 break;
                         }
-//                CircleOptions circleOptions = new CircleOptions()
-//                        .center(current)
-//                        .fillColor(Color.RED)
-//                        .radius(2)
-//                        .strokeWidth(0.0f)
-//                        .visible(true);
+
                         mMap.addPolyline(lineOptions);
                         prevLat = latitude;
                         prevLon = longitude;
@@ -641,12 +624,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         lineOptions.color(Color.BLACK);
                         break;
                 }
-//                CircleOptions circleOptions = new CircleOptions()
-//                        .center(current)
-//                        .fillColor(Color.RED)
-//                        .radius(2)
-//                        .strokeWidth(0.0f)
-//                        .visible(true);
+
                 mMap.addPolyline(lineOptions);
                 mMap.moveCamera(CameraUpdateFactory.newLatLng(current));
 
@@ -969,8 +947,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         Toast.LENGTH_SHORT)
                         .show();
                 setUpdatesRequestedState(false);
-                // Reset the display.
-//                mAdapter.updateActivities(new ArrayList<DetectedActivity>());
             }
         });
 
@@ -1026,7 +1002,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ArrayList<DetectedActivity> detectedActivities = Utils.detectedActivitiesFromJson(
                 PreferenceManager.getDefaultSharedPreferences(mContext)
                         .getString(Constants.KEY_DETECTED_ACTIVITIES, ""));
-//        mAdapter.updateActivities(detectedActivities);
     }
 
     @Override
